@@ -224,12 +224,7 @@ class DataGenerator(keras.utils.Sequence):
 
 
 raw_data = pd.read_csv('processed/PROCESSED_DATASET.csv')
-def parse_add(s):
-    dt = parse(s)
-    if dt >= parse('2009-03-17 00:00:00'):
-        dt += datetime.timedelta(days=1)
-    return dt
-raw_data['timestamp'] = raw_data['timestamp'].apply(parse_add)
+raw_data['timestamp'] = raw_data['timestamp'].apply(parse)
 
 
 # In[19]:
