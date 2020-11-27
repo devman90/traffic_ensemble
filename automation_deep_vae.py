@@ -17,7 +17,7 @@
 
 
 config = {
-    'NAME': 'conv_trans',    # Title 
+    'NAME': 'deep_vae',    # Title 
     'SEED': 0,       # Any integer
     'INPUT_DAYS': 2, # 1 ~ 7
     'LEARNING_RATE': 0.0001, 
@@ -40,7 +40,7 @@ import keras
 import random
 from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Dropout, Activation, Flatten, Conv1D, Lambda, Conv1DTranspose
-from keras.layers import BatchNormalization, Reshape, MaxPooling1D, GlobalAveragePooling1D
+from keras.layers import BatchNormalization, Reshape, MaxPooling1D, GlobalAveragePooling1D, LeakyReLU
 from keras import layers
 from datetime import datetime
 from sklearn.metrics import f1_score
@@ -248,38 +248,59 @@ def build_model(n_meta, n_raw):
     ## network for raw occupancy rate data
     raw_input = Input(shape=(n_raw, ), name='raw')
     raw_net = Reshape((-1, 1))(raw_input)
-    raw_net = Conv1D(64, 3, activation='relu', padding='same')(raw_net)
-    raw_net = Conv1D(64, 3, activation='relu', padding='same')(raw_net)
-    raw_net = MaxPooling1D(2)(raw_net)
-    raw_net = Conv1D(128, 3, activation='relu', padding='same')(raw_net)
-    raw_net = Conv1D(128, 3, activation='relu', padding='same')(raw_net)
-    raw_net = MaxPooling1D(2)(raw_net)
+
+    raw_net = Conv1D(32, 3, strides=2, padding='same')(raw_net)
+    raw_net = BatchNormalization()(raw_net)
+    raw_net = LeakyReLU()(raw_net)
+    raw_net = Dropout(DROPOUT)(raw_net)
+
+    raw_net = Conv1D(64, 3, strides=2, padding='same')(raw_net)
+    raw_net = BatchNormalization()(raw_net)
+    raw_net = LeakyReLU()(raw_net)
+    raw_net = Dropout(DROPOUT)(raw_net)
+
+    raw_net = Conv1D(64, 3, strides=2, padding='same')(raw_net)
+    raw_net = BatchNormalization()(raw_net)
+    raw_net = LeakyReLU()(raw_net)
+    raw_net = Dropout(DROPOUT)(raw_net)
+
+    raw_net = Conv1D(64, 3, strides=2, padding='same')(raw_net)
+    raw_net = BatchNormalization()(raw_net)
+    raw_net = LeakyReLU()(raw_net)
+    raw_net = Dropout(DROPOUT)(raw_net)
+
     raw_net = Flatten()(raw_net)
-    raw_net = Model(inputs = raw_input, outputs=raw_net)
+    raw_net = Model(inputs=raw_input, outputs=raw_net)
 
     combined = layers.Concatenate()([meta_net.output, raw_net.output])
-    final_output = Dense(512, activation='relu')(combined)
-    final_output = Dense(144, activation='relu')(final_output)
-    final_output = Reshape((-1, 1))(final_output)
 
-    final_output = Conv1DTranspose(
-            filters=64, kernel_size=3, padding="same", activation="relu"
-    )(final_output)
-    final_output = Conv1DTranspose(
-            filters=64, kernel_size=3, padding="same", activation="relu"
-    )(final_output)
-    final_output = Conv1DTranspose(
-            filters=32, kernel_size=3, padding="same", activation="relu"
-    )(final_output)
-    final_output = Conv1DTranspose(
-            filters=32, kernel_size=3, padding="same", activation="relu"
-    )(final_output)
-    final_output = Conv1DTranspose(
-            filters=1, kernel_size=3, padding="same", activation="relu"
-    )(final_output)
-    final_output = Flatten()(final_output)
+    mid = Dense(256)(combined)
+    mid = BatchNormalization()(mid)
+    mid = LeakyReLU()(mid)
+    mid = Dropout(DROPOUT)(mid)
+    mid = Dense(576)(mid)
 
-    model = Model(inputs = [meta_net.input, raw_net.input], outputs=final_output)
+    out = Reshape((9, 64))(mid)
+
+    out = Conv1DTranspose(filters=64, kernel_size=3, strides=2, padding="same")(out)
+    out = BatchNormalization()(out)
+    out = LeakyReLU()(out)
+    out = Dropout(DROPOUT)(out)
+
+    out = Conv1DTranspose(filters=64, kernel_size=3, strides=2, padding="same")(out)
+    out = BatchNormalization()(out)
+    out = LeakyReLU()(out)
+    out = Dropout(DROPOUT)(out)
+
+    out = Conv1DTranspose(filters=32, kernel_size=3, strides=2, padding="same")(out)
+    out = BatchNormalization()(out)
+    out = LeakyReLU()(out)
+    out = Dropout(DROPOUT)(out)
+
+    out = Conv1DTranspose(filters=1, kernel_size=3, strides=2, padding="same")(out)
+    out = Flatten()(out)
+
+    model = Model(inputs = [meta_net.input, raw_net.input], outputs=out)
     model.compile(loss='mean_squared_error', optimizer = OPTIMIZER(lr = LEARNING_RATE), metrics='mean_squared_error')
     return model
 
