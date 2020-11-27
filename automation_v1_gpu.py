@@ -51,6 +51,7 @@ import datetime
 import json
 from dateutil.parser import parse
 from sklearn.model_selection import train_test_split
+from keras.utils.training_utils import multi_gpu_model
 
 
 # In[13]:
@@ -64,8 +65,13 @@ if '--config' in sys.argv:
         if os.path.isfile(config_file):
             with open(config_file) as f:
                 config = json.load(f)
-            
 
+GPU = None
+if '--gpu' in sys.argv:
+    gpu_id_idx = sys.argv.index('--gpu') + 1
+    if len(sys.argv) > gpu_id_idx:
+        GPU = sys.argv[gpu_id_idx]
+        print('GPU:', GPU)
 
 # In[14]:
 
@@ -270,7 +276,6 @@ def build_model(n_meta, n_raw):
     final_output = Dense(144, activation='relu')(final_output)
 
     model = Model(inputs = [meta_net.input, raw_net.input], outputs=final_output)
-    model.compile(loss='mean_squared_error', optimizer = OPTIMIZER(lr = LEARNING_RATE), metrics='mean_squared_error')
     return model
 
 
@@ -279,7 +284,8 @@ def build_model(n_meta, n_raw):
 
 keras.backend.clear_session()
 model = build_model(n_meta=11, n_raw=24*6*INPUT_DAYS)
-
+model = multi_gpu_model(model, gpus=3)
+model.compile(loss='mean_squared_error', optimizer = OPTIMIZER(lr = LEARNING_RATE), metrics='mean_squared_error')
 
 # In[23]:
 
@@ -321,7 +327,6 @@ while True:
 # Load the best model
 keras.backend.clear_session()
 model = keras.models.load_model(os.path.join(DIR, 'model.h5'))
-
 
 # In[27]:
 
