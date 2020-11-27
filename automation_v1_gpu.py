@@ -66,13 +66,6 @@ if '--config' in sys.argv:
             with open(config_file) as f:
                 config = json.load(f)
 
-GPU = None
-if '--gpu' in sys.argv:
-    gpu_id_idx = sys.argv.index('--gpu') + 1
-    if len(sys.argv) > gpu_id_idx:
-        GPU = sys.argv[gpu_id_idx]
-        print('GPU:', GPU)
-
 # In[14]:
 
 
@@ -230,12 +223,7 @@ class DataGenerator(keras.utils.Sequence):
 
 
 raw_data = pd.read_csv('processed/PROCESSED_DATASET.csv')
-def parse_add(s):
-    dt = parse(s)
-    if dt >= parse('2009-03-17 00:00:00'):
-        dt += datetime.timedelta(days=1)
-    return dt
-raw_data['timestamp'] = raw_data['timestamp'].apply(parse_add)
+raw_data['timestamp'] = raw_data['timestamp'].apply(parse)
 
 
 # In[19]:
